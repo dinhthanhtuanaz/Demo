@@ -1,0 +1,67 @@
+version: '3'
+
+services:
+    #php này kiểu khai báo phiên bản php để chạy code
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "9000:9000"
+    volumes:
+        # mounting '.' (thư mục hiện tại) với thằng '/var/www' của docker
+      - .:/var/www
+    networks:
+      - app-network
+    #build webservice để chạy code, nơi nhận các request
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - .:/var/www
+      - ./nginx.default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - app-network
+
+    #build service mysql nơi lưu trữ database
+  mysql:
+    image: mysql:5.7
+    command: mysqld --sql_mode=""
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    volumes:
+      - .data/mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=app
+      - MYSQL_USER=app
+      - MYSQL_PASSWORD=secret
+    networks:
+      - app-network
+    #build service quản lý database trên web
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      - PMA_ARBITRARY=0
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=app
+      - PMA_PASSWORD=secret
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - /sessions
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
